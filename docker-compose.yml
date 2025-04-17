@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mcp-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: mcp_demo
+    volumes:
+      - db_data:/var/lib/mysql
+      # Mount init scripts; MySQL runs files in /docker-entrypoint-initdb.d/
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "3306:3306"
+
+  server:
+    build: .
+    container_name: mcp-server
+    depends_on:
+      - db
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      BASE_URL: ${BASE_URL}
+      MODEL: ${MODEL}
+    volumes:
+      - .:/app
+    command: ["uv", "run", "server.py"]
+
+volumes:
+  db_data:

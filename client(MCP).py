@@ -83,24 +83,37 @@ class MCPClient():
 
         content = response.choices[0]
         print (f"[Debug] content: {content}")
-        if content.finish_reason == "tool_calls":
-            tool_call = content.message.tool_calls[0]
-            print (f"[Debug] tool call: {tool_call}")
-            tool_name = tool_call.function.name
-            tool_args = json.loads(tool_call.function.arguments) 
 
+        if content.finish_reason == "tool_calls":
+            tool_messages = []
+
+            for tool_call in content.message.tool_calls:
+                tool_name = tool_call.function.name
+                tool_args = json.loads(tool_call.function.arguments) 
+                result = await self.session.call_tool(tool_name, tool_args)
+                print(f"\n\n Calling tool {tool_name} with arguments {tool_args}\n\n")
+
+                tool_messages.append ({
+                    "role": "tool",
+                    "content": result.content[0].text,
+                    "tool_call_id": tool_call.id,
+                })
+
+            messages.append(content.message.model_dump())
+            messages.extend(tool_messages)
+            
             if "location" in tool_args:
                 tool_args["city"] = tool_args.pop("location")
 
-            result = await self.session.call_tool(tool_name, tool_args)
-            print(f"\n\n Calling tool {tool_name} with arguments {tool_args}\n\n")
+            # result = await self.session.call_tool(tool_name, tool_args)
+            
 
-            messages.append(content.message.model_dump())
-            messages.append({
-                "role": "tool",
-                "content": result.content[0].text,
-                "tool_call_id": tool_call.id,
-            })
+            # messages.append(content.message.model_dump())
+            # messages.append({
+            #     "role": "tool",
+            #     "content": result.content[0].text,
+            #     "tool_call_id": tool_call.id,
+            # })
 
             response = self.client.chat.completions.create (
                 model = self.model,

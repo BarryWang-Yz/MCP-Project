@@ -22,7 +22,7 @@ class MCPClient:
         self.client = OpenAI(api_key=self.openai_api_key, base_url=self.base_url)
 
     async def process_query(self, query: str) -> str:
-        messages = [{"role": "system", "content": "You are an AI chat box to help user resolve their issue."},
+        messages = [{"role": "system", "content": "You are an AI chat box to help user answer their question."},
                     {"role": "user", "content": query}]
         
         try:

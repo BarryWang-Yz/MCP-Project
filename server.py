@@ -1,4 +1,4 @@
-import asyncio
+import aiomysql
 import httpx
 import json
 from typing import Any
@@ -6,7 +6,8 @@ from mcp.server.fastmcp import FastMCP
 
 #Initialize the MCP Server
 
-mcp_server = FastMCP("WeatherServer")
+mcp_server = FastMCP("UnifiedTools")
+# mcp_sql_server = FastMCP("SQLServer")
 
 OPENWEATHER_API_BASE = "https://api.openweathermap.org/data/2.5/weather"
 API_KEY = "c46233933d733988b30f541e698f6c3f"
@@ -64,19 +65,42 @@ def format_weather (data : dict [str, Any] | str) -> str:
         f"Weather: {description}"
     }
 
+async def sql_query(query: str) -> list[tuple]:
+    pool = await aiomysql.create_pool(
+        host='127.0.0.1',
+        port=3306,
+        user='root',
+        password='rootpw',
+        db='mcp_demo'
+    )
+    
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute(query)
+            result = await cursor.fetchall()
+    pool.close()
+    return result    
+
 @mcp_server.tool()
 async def query_weather(city: str) -> str:
     data = await fetch_weather(city)
     return format_weather(data)
 
-# async def test():
-#     try: 
-#         data = await fetch_weather(Beijing)
-#         return format_weather(data)
-    
-#     except Exception as e:
-#         return f"Error message (from server.py): {str(e)}"
+
+@mcp_server.tool()
+async def query_mysql(query: str) -> dict:
+    """
+        Generate a Select Query to retrive data from mySQL DB
+    """
+    # cols = cols.join(column)
+    # query = f"SELECT {cols} FROM {table}"
+    # if condition:
+    #     query += f" WHERE {condition}"
+    row = await sql_query(query)
+    return {"query": query, "rows": row}
+
 
 if __name__ == "__main__":
+    mcp_server.run(transport='stdio')
     mcp_server.run(transport='stdio')
     # asyncio.run(test())
