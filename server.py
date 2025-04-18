@@ -65,21 +65,33 @@ def format_weather (data : dict [str, Any] | str) -> str:
         f"Weather: {description}"
     }
 
+# Define an asynchronous function to execute a SQL query and return the results
 async def sql_query(query: str) -> list[tuple]:
+    # Create an asynchronous connection pool to the MySQL database
     pool = await aiomysql.create_pool(
-        host='127.0.0.1',
-        port=3306,
-        user='root',
-        password='rootpw',
-        db='mcp_demo'
+        host='127.0.0.1',       # MySQL server host (localhost)
+        port=3306,              # Default MySQL port
+        user='root',            # Database username
+        password='rootpw',      # Database password
+        db='mcp_demo'           # Database name to connect to
     )
     
+    # Acquire a connection from the pool
     async with pool.acquire() as conn:
+        # Open a new cursor (used to execute queries)
         async with conn.cursor() as cursor:
+            # Execute the SQL query passed to the function
             await cursor.execute(query)
+            # Fetch all resulting rows as a list of tuples
             result = await cursor.fetchall()
+            print(f"\n [SQL Debug] result: {result}")
+    
+    # Close the connection pool
     pool.close()
-    return result    
+    
+    # Return the fetched result to the caller
+    return result
+    
 
 @mcp_server.tool()
 async def query_weather(city: str) -> str:
