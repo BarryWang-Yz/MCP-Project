@@ -4,7 +4,7 @@ services:
   db:
     image: mysql:8.0
     container_name: mcp-mysql
-    restart: always
+    # restart: always
     environment:
       MYSQL_ROOT_PASSWORD: rootpw
       MYSQL_DATABASE: mcp_demo
