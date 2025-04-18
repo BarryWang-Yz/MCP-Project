@@ -93,13 +93,15 @@ async def sql_query(query: str) -> list[tuple]:
     return result
     
 
-@mcp_server.tool()
+
+
+@mcp_server.tool(description="Get the weather information of a specific city")
 async def query_weather(city: str) -> str:
     data = await fetch_weather(city)
     return format_weather(data)
 
 
-@mcp_server.tool()
+@mcp_server.tool(description="Generate a Select Query to retrive data from mySQL DB")
 async def query_mysql(query: str) -> dict:
     """
         Generate a Select Query to retrive data from mySQL DB
@@ -111,8 +113,35 @@ async def query_mysql(query: str) -> dict:
     row = await sql_query(query)
     return {"query": query, "rows": row}
 
+@mcp_server.tool(description="List all tables in the database")
+async def list_tables() -> list[str]:
+    """
+        List all tables in the database
+    """
+    rows = await sql_query("SHOW TABLES")
+    print(f"\n [Debug] rows: {rows}")
+    return [r[0] for r in rows] 
+
+@mcp_server.tool(description="Describe the columns of a specific table, including the name, type, nullability, and key type")
+async def describe_table(table: str) -> dict:
+    """
+        Describe the structure of a table
+    """
+    query = f"SHOW COLUMNS FROM {table}"
+    rows = await sql_query(query)
+    return {
+        "columns": [
+            {"name": row[0],
+            "type": row[1],
+            "null": row[2],
+            "key": row[3]}
+            for row in rows
+         ]
+    }
+    
+
 
 if __name__ == "__main__":
     mcp_server.run(transport='stdio')
-    mcp_server.run(transport='stdio')
+    # mcp_server.run(transport='stdio')
     # asyncio.run(test())
