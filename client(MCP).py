@@ -83,7 +83,7 @@ class MCPClient():
         )
 
         content = response.choices[0]
-        print (f"\n[Debug] content: {content}\n")
+        print (f"\n\n[Debug] content: {content}\n\n")
 
         if content.finish_reason == "tool_calls":
             tool_messages = []
@@ -124,6 +124,7 @@ class MCPClient():
                 model = self.model,
                 messages = messages,
             )
+
 
             return response.choices[0].message.content
         
