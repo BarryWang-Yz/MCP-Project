@@ -10,11 +10,11 @@ class MCPClient:
     def __init__(self):
         # MCP client initialization
         self.exit_stack = AsyncExitStack() 
-        self.openai_api_key = "DEEPSEEK_API_KEY"
+        self.openai_api_key = os.getenv("DEEPSEEK_API_KEY")
         # print(f"api key:", self.openai_api_key)
-        self.base_url = "BASE_URL"
+        self.base_url = os.getenv("BASE_URL")
         # print(f"base url:", self.base_url)
-        self.model = "MODEL"
+        self.model = os.getenv("MODEL")
 
         if not self.openai_api_key:
             raise ValueError("Can't find the API Key attribute, please edit it over the .env file")
