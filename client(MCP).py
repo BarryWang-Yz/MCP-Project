@@ -60,7 +60,8 @@ class MCPClient():
         print("Successfully connecting to the server and here's the tool list", [tool.name for tool in tools])
 
     async def process_query(self, query: str) -> str:
-        messages = [{"role": "user", "content": query}]
+        messages = [{"role": "system", "content": "You are a helpful assistant with the ability to use tools to answer questions."},
+            {"role": "user", "content": query}]
 
         response = await self.session.list_tools()
 
@@ -72,7 +73,7 @@ class MCPClient():
                 "input_schema": tool.inputSchema
             } 
         } for tool in response.tools]
-
+      
         # print(f"available_tools: ", available_tools)
 
         response = self.client.chat.completions.create (
@@ -82,7 +83,7 @@ class MCPClient():
         )
 
         content = response.choices[0]
-        print (f"[Debug] content: {content}")
+        print (f"\n[Debug] content: {content}\n")
 
         if content.finish_reason == "tool_calls":
             tool_messages = []
@@ -90,20 +91,24 @@ class MCPClient():
             for tool_call in content.message.tool_calls:
                 tool_name = tool_call.function.name
                 tool_args = json.loads(tool_call.function.arguments) 
+                print (f"\n[Debug] tool_args: {tool_args}")
+                # Format the weathwe query tool arguments
+                if "location" in tool_args:
+                    tool_args["city"] = tool_args.pop("location")
+                
                 result = await self.session.call_tool(tool_name, tool_args)
                 print(f"\n\n Calling tool {tool_name} with arguments {tool_args}\n\n")
 
                 tool_messages.append ({
                     "role": "tool",
-                    "content": result.content[0].text,
                     "tool_call_id": tool_call.id,
+                    "content": result.content[0].text,
                 })
 
             messages.append(content.message.model_dump())
             messages.extend(tool_messages)
             
-            if "location" in tool_args:
-                tool_args["city"] = tool_args.pop("location")
+            
 
             # result = await self.session.call_tool(tool_name, tool_args)
             
@@ -114,13 +119,15 @@ class MCPClient():
             #     "content": result.content[0].text,
             #     "tool_call_id": tool_call.id,
             # })
-
+            print (f"\n[Debug] context with tool call: {messages}")
             response = self.client.chat.completions.create (
                 model = self.model,
                 messages = messages,
             )
+
             return response.choices[0].message.content
         
+        print (f"\n[Debug] context without tool call: {messages}")
         return content.message.content
 
     async def chat_loop (self):

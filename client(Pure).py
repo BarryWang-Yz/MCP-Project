@@ -10,11 +10,11 @@ class MCPClient:
     def __init__(self):
         # MCP client initialization
         self.exit_stack = AsyncExitStack() 
-        self.openai_api_key = os.getenv("DEEPSEEK_API_KEY")
+        self.openai_api_key = "DEEPSEEK_API_KEY"
         # print(f"api key:", self.openai_api_key)
-        self.base_url = os.getenv("BASE_URL")
+        self.base_url = "BASE_URL"
         # print(f"base url:", self.base_url)
-        self.model = os.getenv("MODEL")
+        self.model = "MODEL"
 
         if not self.openai_api_key:
             raise ValueError("Can't find the API Key attribute, please edit it over the .env file")
@@ -22,8 +22,7 @@ class MCPClient:
         self.client = OpenAI(api_key=self.openai_api_key, base_url=self.base_url)
 
     async def process_query(self, query: str) -> str:
-        messages = [{"role": "system", "content": "You are an AI chat box to help user answer their question."},
-                    {"role": "user", "content": query}]
+        messages = [{"role": "user", "content": query}]
         
         try:
             response = await asyncio.get_event_loop().run_in_executor(
@@ -38,7 +37,7 @@ class MCPClient:
             return response.choices[0].message.content
         
         except Exception as e:
-            return f"Got the error when call the DeepSeek API : {str(e)}"
+            return f"Got the error when call the Model API : {str(e)}"
 
     # async def connect_to_mock_server(self):
     #     print("MCP client has already initialized, but didn't connect to the server.")
