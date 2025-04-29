@@ -6,24 +6,30 @@
 # annotations=None, audio=None, function_call=None, tool_calls=None, 
 # reasoning_content='Okay, the user greeted me and said, "Hello." I need to respond in a friendly and helpful manner. Let\'s start with a greeting and ask how I can assist them today. Keep it open-ended to encourage them to share their issue. Maybe something like, "Hello! How can I assist you today?" That should work.'))
 
-import asyncio
-import os
-import json
-import sys
-from typing import Optional
+import asyncio, os, json, sys, re
 from contextlib import AsyncExitStack
+from typing import Optional
 
-from openai import OpenAI
 from dotenv import load_dotenv
-
+from openai import OpenAI
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+
 load_dotenv()
+
+SYS_PROMPT = (
+    "You have three tools available to use: [list_tables], [describe_table], [query_table]. \n"
+    "If the query requires you to use multiple tools, for instance, if the user wants to know the email of a specific user, \n"
+    "you can use the [list_tables] tool to get the table name, then use the [describe_table] tool to get the column names, \n"
+    "Then, use the [query_table] tool to grab the information you need. \n" 
+    "Note: Only generate read-only SQL queries such as SELECT, SHOW, DESCRIBE, or EXPLAIN. \n"
+    "Do not generate queries that modify the database, such as INSERT, UPDATE, DELETE, DROP, etc."
+)
 
 class MCPClient():
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.exit_stack = AsyncExitStack()
         self.deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
         self.base_url = os.getenv("BASE_URL")
@@ -34,117 +40,71 @@ class MCPClient():
         self.session: Optional[ClientSession] = None
 
     async def connect_to_server(self, path_to_script: str):
-        is_python = path_to_script.endswith('py')
-        is_js = path_to_script.endswith('js')
-
-        if not (is_python or is_js):
-            raise ValueError(f"The type of the script should be exactly the .py and .js")
-        
-        command = "python" if is_python else "node"
-
-        server_params = StdioServerParameters (
-            command = command,
-            args = [path_to_script],
-            env = None
-        )
-
-        stdio_transport = await self.exit_stack.enter_async_context(stdio_client(server_params))
-        self.stdio, self.write = stdio_transport
-        self.session = await self.exit_stack.enter_async_context(ClientSession(self.stdio, self.write))
-
+        cmd = "python" if path_to_script.endswith(".py") else "node"
+        server_params = StdioServerParameters(command=cmd, args=[path_to_script])
+        self.stdio, self.write = await self.exit_stack.enter_async_context(
+            stdio_client(server_params))
+        self.session: ClientSession = await self.exit_stack.enter_async_context(
+            ClientSession(self.stdio, self.write))
         await self.session.initialize()
-
-        response = await self.session.list_tools()
-        tools = response.tools
-
-        print("Successfully connecting to the server and here's the tool list", [tool.name for tool in tools])
-
+        tools = (await self.session.list_tools()).tools
+        self.tool_specs = [{
+            "type":"function",
+            "function":{
+                "name":t.name,
+                "description":t.description,
+                "input_schema":t.inputSchema}}
+            for t in tools]
+        print("Successfully connected to the server and here's the tool list:", [t["function"]["name"] for t in self.tool_specs])
+    
     async def process_query(self, query: str) -> str:
-        messages = [{"role": "system", "content": "You are a helpful assistant with the ability to use tools to answer questions."},
+        messages = [{"role": "system", "content": SYS_PROMPT},
             {"role": "user", "content": query}]
 
-        response = await self.session.list_tools()
+        while True:
+            response = self.client.chat.completions.create(
+                model = self.model,
+                messages = messages,
+                tools = self.tool_specs,
+            )
 
-        available_tools = [{
-            "type": "function",
-            "function": {
-                "name": tool.name,
-                "description": tool.description,
-                "input_schema": tool.inputSchema
-            } 
-        } for tool in response.tools]
-      
-        # print(f"available_tools: ", available_tools)
-
-        response = self.client.chat.completions.create (
-            model = self.model,
-            messages = messages,
-            tools = available_tools
-        )
-
-        content = response.choices[0]
-        print (f"\n\n[Debug] content: {content}\n\n")
-
-        if content.finish_reason == "tool_calls":
+            choice = response.choices[0]
+            if choice.finish_reason != "tool_calls":
+                stream = self.client.chat.completions.create(
+                    model = self.model,
+                    messages = messages,
+                    stream = True
+                )
+                print ("\nAI Model: ", end="", flush=True)                
+                for chunk in stream:
+                    delta = chunk.choices[0].delta
+                    if delta.content is not None:
+                        print (delta.content, end="", flush=True)
+                print ()
+                return 
+            
             tool_messages = []
-
-            for tool_call in content.message.tool_calls:
-                tool_name = tool_call.function.name
-                tool_args = json.loads(tool_call.function.arguments) 
-                print (f"\n[Debug] tool_args: {tool_args}")
-                # Format the weathwe query tool arguments
-                if "location" in tool_args:
-                    tool_args["city"] = tool_args.pop("location")
-                
-                result = await self.session.call_tool(tool_name, tool_args)
-                print(f"\n\n Calling tool {tool_name} with arguments {tool_args}\n\n")
-
-                tool_messages.append ({
+            for c in choice.message.tool_calls:
+                args = json.loads(c.function.arguments)
+                result = await self.session.call_tool(c.function.name, args)
+                if not args:
+                    print (f"\n Calling tool {c.function.name} with the arguments {args}\n")
+                tool_messages.append({
                     "role": "tool",
-                    "tool_call_id": tool_call.id,
+                    "tool_call_id": c.id,
                     "content": result.content[0].text,
                 })
 
-            messages.append(content.message.model_dump())
-            messages.extend(tool_messages)
-            
-            
-
-            # result = await self.session.call_tool(tool_name, tool_args)
-            
-
-            # messages.append(content.message.model_dump())
-            # messages.append({
-            #     "role": "tool",
-            #     "content": result.content[0].text,
-            #     "tool_call_id": tool_call.id,
-            # })
-            print (f"\n[Debug] context with tool call: {messages}")
-            response = self.client.chat.completions.create (
-                model = self.model,
-                messages = messages,
-            )
-
-
-            return response.choices[0].message.content
-        
-        print (f"\n[Debug] context without tool call: {messages}")
-        return content.message.content
+                print (f"[Debug] Tool messages: {tool_messages}")
+            messages.extend([choice.message.model_dump(), *tool_messages])
 
     async def chat_loop (self):
-        print(f"\n MCP client has already started, press 'quit' to exist")
-
+        print("Type 'quit' to exit: ")
         while True:
-            try:
-                query = input("\nQuery: ").strip()
-                if query.lower() == 'quit':
-                    break
-
-                response = await self.process_query(query)
-                print ("\nDeepSeek R1: ", response)
-
-            except Exception as e:
-                print(f"Ecounter Error message: {str(e)}")
+            q = input("\nUser: ").strip()
+            if q.lower() == "quit":
+                break
+            await self.process_query(q)
 
     async def cleanup (self):
         await self.exit_stack.aclose()

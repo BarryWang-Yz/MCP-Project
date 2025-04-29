@@ -10,7 +10,7 @@ class MCPClient:
     def __init__(self):
         # MCP client initialization
         self.exit_stack = AsyncExitStack() 
-        self.openai_api_key = os.getenv("DEEPSEEK_API_KEY")
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
         # print(f"api key:", self.openai_api_key)
         self.base_url = os.getenv("BASE_URL")
         # print(f"base url:", self.base_url)
@@ -52,7 +52,7 @@ class MCPClient:
                     break
                 
                 response = await self.process_query(query)
-                print(f"\n DeepSeek R1: {response}")
+                print(f"\n AI Model: {response}")
             
             except Exception as e:
                 print(f"\n Encounter error message: {str(e)}")

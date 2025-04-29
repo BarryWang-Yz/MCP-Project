@@ -1,16 +1,92 @@
+# version: "3.9"
+
+# services:
+#   db:
+#     image: mysql:8.0
+#     container_name: mcp-mysql
+#     # restart: always
+#     environment:
+#       MYSQL_ROOT_PASSWORD: rootpw
+#       MYSQL_DATABASE: mcp_demo
+#     volumes:
+#       - db_data:/var/lib/mysql
+#       # Mount init scripts; MySQL runs files in /docker-entrypoint-initdb.d/
+#       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+#     ports:
+#       - "3306:3306"
+
+#   server:
+#     build: .
+#     container_name: mcp-server
+#     depends_on:
+#       - db
+#     environment:
+#       DEEPSEEK_API_KEY: ${OPENAI_API_KEY}
+#       BASE_URL: ${BASE_URL}
+#       MODEL: ${MODEL}
+#     volumes:
+#       - ./src:/app/src
+#     command: ["uv", "run", "server.py"]
+
+# volumes:
+#   db_data:
+
+
+# version: "3.9"
+
+# services:
+#   db:
+#     image: mysql:8.0
+#     container_name: mcp-mysql
+#     restart: unless-stopped
+#     environment:
+#       MYSQL_ROOT_PASSWORD: rootpw
+#       MYSQL_DATABASE: mcp_demo
+#     volumes:
+#       # Persist database files
+#       - db_data:/var/lib/mysql
+#       # Run your schema/init scripts on first startup
+#       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+#     ports:
+#       - "3306:3306"
+
+#   server:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     container_name: mcp-server
+#     depends_on:
+#       - db
+#     environment:
+#       # Pass through your secrets via a .env file or CI
+#       DEEPSEEK_API_KEY: "${OPENAI_API_KEY}"
+#       BASE_URL:           "${BASE_URL}"
+#       MODEL:              "${MODEL}"
+#     # Do not overlay /app so the venv remains intact
+#     # If you want live code mounts, mount only the code dir, not the root app
+#     # volumes:
+#     #   - ./src:/app/src
+#     ports:
+#       - "8000:8000"
+#     command: ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# volumes:
+#   db_data:
+
+
+
+# docker-compose.yml
 version: "3.9"
 
 services:
   db:
     image: mysql:8.0
     container_name: mcp-mysql
-    # restart: always
     environment:
       MYSQL_ROOT_PASSWORD: rootpw
       MYSQL_DATABASE: mcp_demo
     volumes:
       - db_data:/var/lib/mysql
-      # Mount init scripts; MySQL runs files in /docker-entrypoint-initdb.d/
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "3306:3306"
@@ -24,9 +100,13 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
       BASE_URL: ${BASE_URL}
       MODEL: ${MODEL}
-    volumes:
-      - .:/app
-    command: ["uv", "run", "server.py"]
+    # Remove the catch-all bind-mount
+    # If you still need live code reload, mount only a subdir:
+    # volumes:
+    #   - ./server:/app
+    ports:
+      - "8000:8000"
 
 volumes:
   db_data:
+
