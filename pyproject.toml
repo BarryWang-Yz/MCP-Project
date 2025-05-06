@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "dashscope",
     "httpx>=0.28.1",
     "mcp>=1.6.0",
     "openai>=1.74.0",
@@ -15,3 +16,6 @@ dependencies = [
 members = [
     "Dockerfile",
 ]
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple"
