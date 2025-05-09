@@ -109,8 +109,9 @@ async def query_weather(city: str) -> str:
     data = await fetch_weather(city)
     return format_weather(data)
 
-@mcp_server.tool(description="List every table in the current database with estimated row count and size (MB).")
+@mcp_server.tool(description="可以将数据库中所有的表格都列举出来，并且能获取所有表格的大致信息。")
 async def list_tables() -> list[dict]:
+    # 显式指定数据库，避免默认库不一致
     meta_rows = await sql_query("SHOW TABLE STATUS", as_dict=True)
     return [
         {
@@ -121,24 +122,25 @@ async def list_tables() -> list[dict]:
         for row in meta_rows
     ]
 
-@mcp_server.tool(description="Describe the structure of a specific table, including column names, types, and keys.")
+
+@mcp_server.tool(description="可以将表格的所有column值都解析出来。请注意：该表格所需参数名为'table'。")
 async def describe_table(table: str) -> dict:
-    rows = await sql_query(f"SHOW COLUMNS FROM `{table}`")
+    rows = await sql_query(f"SHOW COLUMNS FROM `{table}`", as_dict=True)
     return {
         "columns": [
-            {"name": c[0], "type": c[1], "null": c[2], "key": c[3]}
+            {"name": c["Field"], "type": c["Type"], "null": c["Null"], "key": c["Key"]}
             for c in rows
         ]
     }
 
 select_regex = re.compile(r"^select\s.+\sfrom\s.+", re.I | re.S)
 
-@mcp_server.tool(description="Execute a safe SELECT query against the MySQL database.")
+@mcp_server.tool(description="可以执行一个安全的SELECT query以确保能够从数据库中调取合理的数据。请注意：该表可所需参数名为'query'。")
 async def query_mysql(query: str) -> dict:
     if not select_regex.match(query.strip()):
         raise ValueError("Only SELECT queries are allowed.")
-    rows = await sql_query(query)
-    return {"query": query, "rows": rows}
+    rows = await sql_query(query, as_dict=True)
+    return {"payload": {"query": query, "rows": rows}}
 
 # ========== Main Entrypoint ==========
     
