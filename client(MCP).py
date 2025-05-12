@@ -160,10 +160,10 @@ class MCPClient():
                     result = await self.session.call_tool(name, args)
                     
                     records = []
-                    print("\nDEBUG query_mysql raw content: ", result.content)
+                    # print("\nDEBUG query_mysql raw content: ", result.content)
                     for item in result.content:
                         # 正确地取出 JSON 字符串
-                        print("\nDEBUG text raw content: ", item.text)
+                        # print("\nDEBUG text raw content: ", item.text)
                         raw_json = item.text
                         try:
                              row = json.loads(raw_json)
