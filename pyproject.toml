@@ -6,8 +6,10 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiomysql>=0.2.0",
+    "cryptography>=44.0.3",
     "dashscope",
     "httpx>=0.28.1",
+    "llama-index>=0.12.35",
     "mcp>=1.6.0",
     "openai>=1.74.0",
     "pip-tools>=7.4.1",
