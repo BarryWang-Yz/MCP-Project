@@ -142,6 +142,107 @@ async def query_mysql(query: str) -> dict:
     rows = await sql_query(query, as_dict=True)
     return {"payload": {"query": query, "rows": rows}}
 
+
+# ========== Ivanti API Tools ==========
+
+@mcp_server.tool(description="可以登录Ivanti系统并获取Session Key。成功登录后会缓存Session Key供后续接口使用。参数需要提供tenant、username、password、role。")
+async def login_ivanti(tenant: str, username: str, password: str, role: str) -> str:
+    global ivanti_session_key, ivanti_tenant
+    async with httpx.AsyncClient() as client:
+        try:
+            url = f"https://{tenant}/api/rest/authentication/login"
+            payload = {"tenant": tenant, "username": username, "password": password, "role": role}
+            response = await client.post(url, json=payload, timeout=30.0)
+            response.raise_for_status()
+            # Parse session key from response
+            session_val = None
+            try:
+                session_val = response.json()
+            except Exception:
+                session_val = response.text.strip()
+            if isinstance(session_val, dict):
+                key = None
+                if "sessionId" in session_val:
+                    key = session_val["sessionId"]
+                elif "SessionId" in session_val:
+                    key = session_val["SessionId"]
+                elif "token" in session_val:
+                    key = session_val["token"]
+                else:
+                    return f"登录成功，但无法解析Session Key: {session_val}"
+                session_val = key
+            if not isinstance(session_val, str) or session_val == "":
+                return "登录失败: 未获取到Session Key"
+            # Store session key and tenant globally
+            if tenant in session_val:
+                ivanti_session_key = session_val
+            else:
+                ivanti_session_key = f"{tenant}#{session_val}#2"
+            ivanti_tenant = tenant
+            return "登录成功，Session Key 已缓存。"
+        except httpx.HTTPStatusError as e:
+            error_msg = ""
+            try:
+                err_json = e.response.json()
+                if isinstance(err_json, dict):
+                    if "error" in err_json:
+                        error_msg = err_json.get("error")
+                    elif "message" in err_json:
+                        error_msg = err_json.get("message")
+                    else:
+                        error_msg = str(err_json)
+                else:
+                    error_msg = str(err_json)
+            except Exception:
+                error_msg = e.response.text
+            return f"登录失败: HTTP {e.response.status_code} - {error_msg}"
+        except Exception as e:
+            return f"登录请求异常: {str(e)}"
+
+@mcp_server.tool(description="可以根据工单单号获取Ivanti工单的详细信息。请确保已登录后再调用此工具，参数名为ticket_number。")
+async def get_ticket_detail(ticket_number: int) -> dict:
+    if not ivanti_session_key:
+        return {"error": "未登录Ivanti，请先调用login_ivanti进行登录。"}
+    async with httpx.AsyncClient() as client:
+        try:
+            url = f"https://{ivanti_tenant}/api/odata/businessobject/incidents"
+            params = {"$filter": f"incidentnumber eq {ticket_number}"}
+            headers = {"Authorization": ivanti_session_key}
+            response = await client.get(url, params=params, headers=headers, timeout=30.0)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            try:
+                err_json = e.response.json()
+                error_msg = err_json.get("error") if isinstance(err_json, dict) else str(err_json)
+            except Exception:
+                error_msg = e.response.text
+            return {"error": f"HTTP {e.response.status_code} - {error_msg}"}
+        except Exception as e:
+            return {"error": f"请求失败: {str(e)}"}
+
+@mcp_server.tool(description="可以根据用户登录ID获取Ivanti用户的详细信息。请确保已登录后再调用此工具，参数名为login_id。")
+async def get_user_detail(login_id: str) -> dict:
+    if not ivanti_session_key:
+        return {"error": "未登录Ivanti，请先调用login_ivanti进行登录。"}
+    async with httpx.AsyncClient() as client:
+        try:
+            url = f"https://{ivanti_tenant}/api/odata/businessobject/employees"
+            params = {"$filter": f"LoginID eq '{login_id}'"}
+            headers = {"Authorization": ivanti_session_key}
+            response = await client.get(url, params=params, headers=headers, timeout=30.0)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            try:
+                err_json = e.response.json()
+                error_msg = err_json.get("error") if isinstance(err_json, dict) else str(err_json)
+            except Exception:
+                error_msg = e.response.text
+            return {"error": f"HTTP {e.response.status_code} - {error_msg}"}
+        except Exception as e:
+            return {"error": f"请求失败: {str(e)}"}
+
 # ========== Main Entrypoint ==========
     
 
