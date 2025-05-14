@@ -2,35 +2,50 @@ import llama_index
 from llama_index.embeddings.dashscope import DashScopeEmbedding, DashScopeTextEmbeddingModels
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
 from llama_index.llms.openai_like import OpenAILike
+from llama_index.core import StorageContext, load_index_from_storage
+from llama_index.llms.dashscope import DashScope
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
-print ("开始解析文档....")
-documents = SimpleDirectoryReader('/Users/barrywang/Documents/Yuzhuo_macBook_air/MCP_Dev/RAG_source').load_data()
+def indexing (document_path="/Users/barrywang/Documents/Yuzhuo_macBook_air/MCP_Dev/RAG_source", persist_path="knowledge_base/test"):
+    index = create_index(document_path)
+    index.storage_context.persist(persist_path)
 
-print ("正在创建索引....")
-index = VectorStoreIndex.from_documents(
-    documents,
-    embed_model=DashScopeEmbedding(
-        model_name=DashScopeTextEmbeddingModels.TEXT_EMBEDDING_V2
+
+def create_index(document_path="/Users/barrywang/Documents/Yuzhuo_macBook_air/MCP_Dev/RAG_source"):
+    documents = SimpleDirectoryReader(document_path).load_data()
+    index = VectorStoreIndex.from_documents(
+        documents,
+        embed_model=DashScopeEmbedding(
+            model_name=DashScopeTextEmbeddingModels.TEXT_EMBEDDING_V2,
+            api_key=os.getenv("QWEN_API_KEY"),
+            api_base=os.getenv("QWEN_BASE_URL")
+        )
     )
-)
 
-print ("正在配置提问引擎...")
-query_engine = index.as_query_engine(
-    streaming = True,
-    llm=OpenAILike(
-        model=os.getenv("QWEN_MODEL"),
-        api_base=os.getenv("QWEN_BASE_URL"),
-        api_key=os.getenv("QWEN_API_KEY"),
-        is_chat_model=True
+    return index
+
+def load_index(persist_path="knowledge_base/test"):
+    storage_context = StorageContext.from_defaults(persist_dir=persist_path)
+    return load_index_from_storage(
+        storage_context, 
+        embed_model=DashScopeTextEmbeddingModels.TEXT_EMBEDDING_V2,
     )
-)
 
-print("正在生成回复...")
-streaming_response = query_engine.query("帮我简单分析一下文档在描述什么信息？")
+def create_query_engine(index):
+    query_engine = index.as_query_engine(
+        streaming=True,
+        llm=OpenAILike(
+            model=os.getenv("QWEN_MODEL"),
+            is_chat_model=True
+        )
+    )
 
-print ("最终答案：")
-streaming_response.print_response_stream()
+    return query_engine
+
+def ask(question, query_engine):
+    streaming_response = query_engine.query(question)
+    streaming_response.print_response_stream()
+
