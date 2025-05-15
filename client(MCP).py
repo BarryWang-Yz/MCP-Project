@@ -25,10 +25,10 @@ RESET = "\033[0m"
 load_dotenv()
 
 SYS_PROMPT = (
-    "你可以调用以下三种数据库工具："
-    "[list_tables]、[describe_table]、[query_table]。请按需调用，只执行只读 SQL。"
-    "通常来说，你可以先调用[list_tables]工具将"
-    "请注意：如果工具未返回数据，那么请不要生成你的假象值，只需要说'未获得数据'。"
+    "你可以调用以下工具：\n"
+    "1. 数据库工具：[list_tables]、[describe_table]、[query_table]（只执行只读 SQL）。通常你可以先调用[list_tables]来获取所有表格列表。\n"
+    "2. Ivanti 接口工具：[login_ivanti]、[get_ticket_detail]、[get_user_detail]。请先使用[login_ivanti]登录获取Session Key，然后再使用[get_ticket_detail]或[get_user_detail]查询工单或用户详情。\n"
+    "请注意：如果工具未返回数据，请不要编造信息，只需回复'未获得数据'。"
 )
 
 class MCPClient():
@@ -178,7 +178,7 @@ class MCPClient():
 
                     if any_error:
                         err_block = "\n".join(f"- {m}" for m in err_messages)
-                        print("\nDEBUG err_block: ", err_block)
+                        # print("\nDEBUG err_block: ", err_block)
                         correction_msg = {
                             "role": "system",
                             "content": (
