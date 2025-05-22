@@ -1,11 +1,3 @@
-# response.choices[0]:  Choice(finish_reason='stop', 
-# index=0, logprobs=None, 
-# message=ChatCompletionMessage(content='Hello! How can I assist you today? 😊', 
-# refusal=None, 
-# role='assistant', 
-# annotations=None, audio=None, function_call=None, tool_calls=None, 
-# reasoning_content='Okay, the user greeted me and said, "Hello." I need to respond in a friendly and helpful manner. Let\'s start with a greeting and ask how I can assist them today. Keep it open-ended to encourage them to share their issue. Maybe something like, "Hello! How can I assist you today?" That should work.'))
-
 import asyncio, os, json, sys, textwrap, re
 from contextlib import AsyncExitStack
 from dotenv import load_dotenv
