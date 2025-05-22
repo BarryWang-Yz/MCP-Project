@@ -104,10 +104,10 @@ def format_weather(data: dict[str, Any] | str) -> str:
 
 # ========== MCP Tool Definitions ==========
 
-@mcp_server.tool(description="Get the weather information of a specific city.")
-async def query_weather(city: str) -> str:
-    data = await fetch_weather(city)
-    return format_weather(data)
+# @mcp_server.tool(description="Get the weather information of a specific city.")
+# async def query_weather(city: str) -> str:
+#     data = await fetch_weather(city)
+#     return format_weather(data)
 
 @mcp_server.tool(description="可以将数据库中所有的表格都列举出来，并且能获取所有表格的大致信息。")
 async def list_tables() -> list[dict]:
