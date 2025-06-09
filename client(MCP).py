@@ -27,12 +27,15 @@ class MCPClient():
 
     def __init__(self) -> None:
         self.exit_stack = AsyncExitStack()
-        self.api_key = os.getenv("QWEN_API_KEY")
+        # self.api_key = os.getenv("QWEN_API_KEY")
+        self.api_key = os.getenv("DEEPSEEK_API_KEY")
         self.client = OpenAI(
             api_key=self.api_key,
-            base_url=os.getenv("QWEN_BASE_URL"),
+            # base_url=os.getenv("QWEN_BASE_URL"),
+            base_url=os.getenv("DEEPSEEK_BASE_URL"),
         )
-        self.model = os.getenv("QWEN_MODEL")
+        # self.model = os.getenv("QWEN_MODEL")
+        self.model = os.getenv("DEEPSEEK_MODEL")
         if not self.api_key:
             raise ValueError("无法正确获取API key，请在.env文件中配置。")
         
@@ -149,6 +152,7 @@ class MCPClient():
                     # 1. 执行工具
                     name = buf["name"]
                     args = json.loads(buf["arguments"] or "{}")
+                    print(f"正在使用参数：{args}调用工具：{name}。")
                     result = await self.session.call_tool(name, args)
                     
                     records = []
